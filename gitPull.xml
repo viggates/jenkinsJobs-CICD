@@ -1,0 +1,55 @@
+<project><actions/><description/><keepDependencies>false</keepDependencies><properties/><scm class="hudson.scm.NullSCM"/><canRoam>true</canRoam><disabled>false</disabled><blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding><blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding><triggers><hudson.triggers.TimerTrigger><spec>H/2 * * * *</spec></hudson.triggers.TimerTrigger></triggers><concurrentBuild>false</concurrentBuild><builders><hudson.tasks.Shell><command>#!/bin/bash
+
+path=~/gitRepo/
+package=test_repo
+repo=/home/repo/myrepo/
+
+if [ -d "$path/$package" ]
+then
+ cd $path/$package
+ status=`git pull`
+ if [ "$status" != "Already up-to-date." ]
+ then
+     echo "create package"
+ else
+     echo "upto date repo"
+     exit 1
+ fi
+else
+ mkdir $path
+ cd $path
+ git clone ssh://root@10.135.126.20/root/repo/test_repo.git
+ echo "clone and create package"
+fi
+
+cd $path/
+packagename=`cat $package/debian/control | grep "Source" | cut -d: -f2| cut -d" " -f2`
+echo $packagename
+echo $path/$packagename-${BUILD_NUMBER}
+mkdir -p $path/$packagename-${BUILD_NUMBER}
+cp -r $path/$package/* $path/$packagename-${BUILD_NUMBER}/
+cd $path/$packagename-${BUILD_NUMBER}/
+mv debian/changelog debian/changelog.bkp
+echo -e "mypackage (1.0-${BUILD_NUMBER}) unstable; urgency=low\n" >> debian/changelog
+echo -e "  * Auto update new build\n" >> debian/changelog
+echo -e " -- jenkins <jenkins@unknown>  `date "+%a, %d %b %Y %T %z"`\n" >> debian/changelog
+cat debian/changelog.bkp >> debian/changelog
+rm -rf debian/changelog.bkp
+dpkg-buildpackage -uc -us -sa -b
+
+
+cp $path/${packagename}_1.0-${BUILD_NUMBER}_amd64.deb  ~/ARTIFACT.deb
+rm -rf $path/*.changes
+rm -rf $path/packagename
+sudo cp $path/${packagename}_1.0-${BUILD_NUMBER}_amd64.deb $repo/ubuntu/pool/main/m/
+cd $repo/ubuntu
+sudo dpkg-scanpackages -a amd64 pool/main/m/ > /tmp/${packagename}_1.0-${BUILD_NUMBER}
+sudo gzip -c /tmp/${packagename}_1.0-${BUILD_NUMBER} > /tmp/${packagename}_1.0-${BUILD_NUMBER}.gz
+sudo mv /tmp/${packagename}_1.0-${BUILD_NUMBER} dists/trusty/main/binary-amd64/Packages
+sudo rm -rf dists/trusty/main/binary-amd64/Packages.gz
+sudo mv /tmp/${packagename}_1.0-${BUILD_NUMBER}.gz  dists/trusty/main/binary-amd64/Packages.gz
+sudo apt-ftparchive release dists/trusty/ > /tmp//${packagename}_1.0-${BUILD_NUMBER}.Release
+sudo mv /tmp//${packagename}_1.0-${BUILD_NUMBER}.Release dists/trusty/Release
+rm -rf  ${path}/${packagename}*
+
+</command></hudson.tasks.Shell></builders><publishers/><buildWrappers/></project>

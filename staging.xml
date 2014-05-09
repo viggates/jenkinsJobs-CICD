@@ -1,0 +1,28 @@
+<project><actions/><description/><logRotator class="hudson.tasks.LogRotator"><daysToKeep>-1</daysToKeep><numToKeep>20</numToKeep><artifactDaysToKeep>-1</artifactDaysToKeep><artifactNumToKeep>-1</artifactNumToKeep></logRotator><keepDependencies>false</keepDependencies><properties/><scm class="hudson.scm.NullSCM"/><canRoam>true</canRoam><disabled>false</disabled><blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding><blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding><triggers><hudson.triggers.TimerTrigger><spec>H/2 * * * *</spec></hudson.triggers.TimerTrigger></triggers><concurrentBuild>false</concurrentBuild><builders><hudson.plugins.copyartifact.CopyArtifact plugin="copyartifact@1.30"><project>triggerHeat</project><filter>lastAT-success</filter><target/><selector class="hudson.plugins.copyartifact.StatusBuildSelector"/><doNotFingerprintArtifacts>false</doNotFingerprintArtifacts></hudson.plugins.copyartifact.CopyArtifact><hudson.tasks.Shell><command>#!/bin/bash -xe
+LAST_TESTED=0
+if [ -e lastAT-success ]
+then
+    LAST_TESTED=`cat lastAT-success`
+fi
+
+if [ $LAST_TESTED -ne 0 ]
+then
+ LAST_ST=0
+ if [ -e lastST ]
+ then
+    LAST_ST=`cat lastST`
+ fi
+ if [ $LAST_ST -ne $LAST_TESTED ]
+ then
+  sudo rm -rf /var/www/latest-staging
+  sudo ln -s "/var/www/snapshots/v${LAST_TESTED}/mirror/ubuntu-server-x8664:81/myrepo/ubuntu/" /var/www/latest-staging
+  #sudo apt-get update > file-name 2>&1
+  sudo sh /home/repo/update.sh
+  sudo rm -rf file-name
+  sudo apt-get -y --force-yes install mypackage
+  echo $LAST_TESTED > lastST
+ fi
+else
+ echo "No carried artifact"
+ exit 2
+fi</command></hudson.tasks.Shell></builders><publishers><hudson.tasks.ArtifactArchiver><artifacts>lastST</artifacts><latestOnly>false</latestOnly><allowEmptyArchive>false</allowEmptyArchive><onlyIfSuccessful>false</onlyIfSuccessful></hudson.tasks.ArtifactArchiver></publishers><buildWrappers/></project>
